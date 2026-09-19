@@ -14,6 +14,7 @@ El prototipo existente es la línea base. No se reemplazará `chat_arduino.py` d
 - La interfaz web está embebida en `chat_arduino.py`.
 - El historial y los usuarios conectados viven en memoria.
 - Todavía no hay autenticación, persistencia, salas, archivos, administración, QR ni IA.
+- El profesor eligió **Claude** como primer proveedor de IA previsto, con una cuenta/API administrada por otro alumno.
 - La auditoría completa y el plan propuesto están en `PLAN_NEXUS_TEAM_CHAT.md`.
 
 ## Acuerdos propuestos
@@ -30,6 +31,10 @@ Estos puntos necesitan revisión del alumno. Se consideran propuestos, no impues
 8. Antes de cada función nueva, agregar o actualizar pruebas.
 9. No mezclar en un mismo cambio modularización, archivos e IA.
 10. Los archivos recibidos nunca se ejecutarán ni se guardarán con una ruta proporcionada por el usuario.
+11. Claude se integrará detrás de una interfaz de proveedor; el chat no conocerá directamente detalles de Anthropic.
+12. La integración usará acceso oficial a la API de Anthropic Console. Una cuenta o suscripción de Claude.ai no sustituye el acceso a la API.
+13. El alumno responsable de Claude no compartirá contraseña, sesión del navegador ni clave en GitHub, chats o archivos versionados.
+14. La clave de API se configurará únicamente en la PC servidor y el programa funcionará localmente aunque esa clave falte, sea revocada o no tenga saldo.
 
 ## Primera integración propuesta
 
@@ -61,6 +66,14 @@ No se propone empezar todavía por IA, archivos ni una reescritura del servidor.
 - Documentar riesgos, decisiones y resultados de cada pull request.
 - No integrar una decisión controvertida sin dejarla explícita para revisión.
 
+### Alumno responsable de Claude
+
+- Confirmar que dispone de acceso a Anthropic Console/API, no solamente de una cuenta de Claude.ai.
+- Conservar la propiedad de sus credenciales; nadie necesita conocer su contraseña.
+- Acordar con el profesor presupuesto, créditos, límites de uso y quién puede revocar la clave.
+- Configurar la clave directamente en el entorno seguro de la PC servidor cuando llegue la fase de IA; nunca pegarla en un issue, pull request, commit, captura o archivo `.env` versionado.
+- Colaborar con Codex en el adaptador de Anthropic y sus pruebas usando una clave simulada durante el desarrollo normal.
+
 ### Profesor
 
 - Resolver decisiones de producto cuando haya dos opciones válidas.
@@ -78,6 +91,14 @@ Por favor responde en el pull request de coordinación:
 5. ¿Prefieres encargarte de la interfaz, del servidor, de pruebas o de una función completa?
 6. ¿Ya probaste el chat desde un celular? Incluye sistema, navegador y cualquier error.
 7. ¿Aceptas comenzar por documentación + pruebas y después modularizar sin cambiar el comportamiento?
+
+## Preguntas para el alumno responsable de Claude
+
+1. ¿La cuenta tiene acceso a **Anthropic Console/API** y créditos de uso, o solo acceso a Claude.ai/Claude Code?
+2. ¿Quién será responsable de la facturación y del límite máximo de gasto?
+3. ¿El profesor podrá deshabilitar y revocar la integración sin depender del alumno?
+4. ¿Aceptas no compartir credenciales y configurar la clave solo en el servidor cuando exista el módulo seguro?
+5. ¿Participarás únicamente como responsable de la cuenta o también desarrollarás/revisarás el adaptador de Anthropic?
 
 ## Forma de trabajar juntos
 
@@ -99,7 +120,7 @@ Por favor responde en el pull request de coordinación:
 | Persistencia e identidad | Por acordar | Bloqueada | Por diseñar | Modularización |
 | Salas y privados | Por acordar | Bloqueada | Por diseñar | Identidad + persistencia |
 | Archivos | Por acordar | Bloqueada | Por diseñar | Seguridad + cuotas |
-| NEXUS IA | Por acordar | Bloqueada | Por diseñar | Chat estable + secretos backend |
+| Adaptador Claude para NEXUS IA | Alumno IA + Codex, por confirmar | Bloqueada | `nexus_chat/ai/` (futuro) | Chat estable + Console/API + secretos backend |
 
 ## Registro de decisiones
 
@@ -108,6 +129,7 @@ Por favor responde en el pull request de coordinación:
 | 2026-09-18 | Preservar el prototipo y auditar antes de programar | Aceptada | Profesor + Codex |
 | 2026-09-18 | Usar este archivo y su pull request como punto de coordinación | Propuesta | Pendiente del alumno |
 | 2026-09-18 | Empezar por pruebas/documentación antes de modularizar | Propuesta | Pendiente del alumno |
+| 2026-09-18 | Usar Claude como primer proveedor mediante un adaptador opcional | Aceptada como decisión de producto; implementación pendiente | Profesor + alumno IA + Codex |
 
 ## Criterio para comenzar a integrar código
 
