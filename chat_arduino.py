@@ -13,6 +13,7 @@ Uso:
 
 Los estudiantes abren en el navegador la direccion que se imprime al iniciar.
 """
+import ipaddress
 import json
 import queue
 import socket
@@ -197,20 +198,99 @@ class Handler(BaseHTTPRequestHandler):
 
 
 # ------------------------------------------------------------- arranque ----
-def local_ips():
-    ips = set()
+def es_privada(ip):
+    """True si la IP esta en un rango privado (RFC 1918).
+
+    Se usa `ipaddress` y no comparacion de texto: la idea la tomamos del
+    prototipo V2, y es mejor. `"172.5.0.1".startswith("172.")` da True y
+    esa direccion NO es privada; el bloque privado es solo 172.16-31.
+    """
+    try:
+        return ipaddress.ip_address(ip).is_private
+    except ValueError:
+        return False
+
+
+def es_inservible(ip):
+    """Direcciones por las que nunca va a entrar otro equipo.
+
+    Loopback es esta misma maquina. Link-local (169.254.x.x) es la que el
+    sistema se autoasigna cuando no encuentra DHCP: que aparezca
+    significa justamente que esa placa NO esta en una red util.
+
+    Lo que NO se descarta aqui es una IP publica. El V2 se queda solo con
+    las privadas, y eso deja sin direccion a una escuela cuyo equipo
+    tenga IP publica en la placa. Es raro, pero cuando pasa el programa
+    no muestra nada y no hay forma de saber por que.
+    """
+    try:
+        dir_ip = ipaddress.ip_address(ip)
+    except ValueError:
+        return True
+    return (dir_ip.version != 4 or dir_ip.is_loopback
+            or dir_ip.is_link_local or dir_ip.is_unspecified)
+
+
+def ip_de_salida():
+    """La IP de la interfaz por la que este equipo sale a la red.
+
+    Es la unica senal fiable que hay sin usar APIs propias de cada
+    sistema operativo: connect() sobre UDP no envia ni un byte, solo
+    hace que el sistema elija la interfaz de salida segun su tabla de
+    rutas. Leyendo el socket se sabe cual eligio, y esa es la direccion
+    que un celular en la misma red puede alcanzar.
+
+    Devuelve None si no hay ninguna red util.
+    """
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("10.255.255.255", 1))     # no envia nada; solo elige interfaz
-        ips.add(s.getsockname()[0])
-        s.close()
+        try:
+            s.settimeout(0.2)          # del V2: seguro barato por si el sistema demora
+            s.connect(("10.255.255.255", 1))
+            ip = s.getsockname()[0]
+        finally:
+            s.close()
     except OSError:
-        pass
+        return None
+    return None if es_inservible(ip) else ip
+
+
+def otras_ips(principal=None):
+    """Las demas IPv4 del equipo. Devuelve [(ip, es_sospechosa)].
+
+    `es_sospechosa` marca las que casi seguro pertenecen a un adaptador
+    virtual: WSL, Hyper-V, Docker, VirtualBox. Esas placas suelen tomar
+    el .1 de su propia subred privada, porque hacen de puerta de enlace
+    de una red que solo existe dentro de esta maquina. Un alumno que
+    copie una de esas no se conecta nunca.
+
+    Es una heuristica, no una certeza, asi que se muestran igual pero
+    avisando. Ocultarlas del todo seria peor: en un equipo con dos
+    placas de red buenas, la segunda podria ser la que sirve.
+    """
+    encontradas = set()
     try:
-        ips.update(socket.gethostbyname_ex(socket.gethostname())[2])
+        encontradas.update(socket.gethostbyname_ex(socket.gethostname())[2])
     except OSError:
         pass
-    return sorted(ip for ip in ips if not ip.startswith("127."))
+
+    resultado = []
+    for ip in sorted(encontradas):
+        if es_inservible(ip) or ip == principal:
+            continue
+        resultado.append((ip, es_privada(ip) and ip.endswith(".1")))
+    return resultado
+
+
+def local_ips():
+    """La lista plana de siempre, pero con la buena primero.
+
+    Se conserva para no romper a quien ya la use. Lo nuevo deberia
+    llamar a ip_de_salida() y otras_ips(), que distinguen cual sirve.
+    """
+    principal = ip_de_salida()
+    resto = [ip for ip, _ in otras_ips(principal)]
+    return [principal] + resto if principal else resto
 
 
 def main():
@@ -221,14 +301,27 @@ def main():
         print("Prueba con otro:  python chat_arduino.py 8080")
         return
     print("Chat de clase en marcha. Ctrl+C para cerrar.\n")
-    ips = local_ips()
-    if ips:
-        print("Que los estudiantes abran en su navegador:")
-        for ip in ips:
-            print(f"    http://{ip}:{PORT}")
+
+    principal = ip_de_salida()
+    otras = otras_ips(principal)
+
+    if principal:
+        print("Que los estudiantes abran en su navegador:\n")
+        print(f"    http://{principal}:{PORT}\n")
     else:
-        print("No veo ninguna red. Conecta este equipo al Wi-Fi/router de la clase.")
-    print(f"\n(En este mismo equipo: http://localhost:{PORT})")
+        print("No veo ninguna red util.")
+        print("Conecta este equipo al Wi-Fi o al router de la clase.\n")
+
+    if otras:
+        # Se muestran, pero separadas y avisando: antes iban mezcladas
+        # con la buena y no habia forma de saber cual copiar.
+        print("Otras direcciones de este equipo. Casi seguro NO sirven:")
+        for ip, sospechosa in otras:
+            nota = "   <- adaptador virtual (WSL/Hyper-V/Docker)" if sospechosa else ""
+            print(f"    http://{ip}:{PORT}{nota}")
+        print()
+
+    print(f"(En este mismo equipo: http://localhost:{PORT})")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
