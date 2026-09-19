@@ -47,6 +47,32 @@ La primera integración compartida debería ser pequeña y sin cambios visibles 
 
 No se propone empezar todavía por IA, archivos ni una reescritura del servidor. Primero necesitamos una base verificable que ambos podamos modificar sin romper el chat actual.
 
+## Acuerdo operativo alcanzado
+
+Christopher y Renato revisaron el plan en el issue de coordinación y aceptaron conservar Python, navegador, SSE + HTTP, la apariencia Arduino y `chat_arduino.py` como lanzador compatible. El profesor autorizó continuar.
+
+La modularización posterior seguirá inicialmente esta forma:
+
+```text
+nexus_chat/
+├── communication/
+│   ├── server.py
+│   ├── clients.py
+│   ├── messages.py
+│   └── network.py
+└── web/                    # extracción posterior de PAGE
+    ├── index.html
+    └── static/
+        ├── app.js
+        └── styles.css
+```
+
+`communication/` y `web/` no se crearán hasta que las pruebas de regresión protejan el comportamiento actual. La extracción será gradual; no se reescribirá el prototipo de golpe.
+
+Para **CHAT.ide LAN 1.0** se adopta provisionalmente el alcance de un aula de aproximadamente 30 usuarios simultáneos y una prueba de margen con 60. Se agregará un límite configurable. Si el objetivo cambia a 150–200 usuarios o toda la escuela, se reevaluará `ThreadingHTTPServer` antes de consolidar la arquitectura.
+
+Después de la línea base y la selección de IP, el primer endurecimiento propuesto es rate limiting de mensajes junto con límites de conexiones y colas. La autenticación de sesiones se abordará después como cambio separado, porque altera el modelo de identidad.
+
 ## Reparto inicial sugerido
 
 ### Alumno
@@ -114,9 +140,11 @@ Por favor responde en el pull request de coordinación:
 
 | Tarea | Responsable | Estado | Archivos previstos | Dependencia |
 |---|---|---|---|---|
-| Revisar y aceptar acuerdos | Alumno + Codex | Esperando respuesta del alumno | `COORDINACION_NEXUS.md` | Ninguna |
-| Pruebas de regresión del prototipo | Por acordar | Propuesta | `tests/` | Acuerdos aceptados |
-| Guía de arranque y prueba LAN | Por acordar | Propuesta | `README.md`, `docs/LAN_SETUP.md` | Prueba física |
+| Revisar y aceptar acuerdos | Christopher + Renato + Codex | Completada | `COORDINACION_NEXUS.md` | Ninguna |
+| Pruebas de regresión del prototipo | Codex | En curso en `codex/fase1-regression` | `tests/` | Acuerdos aceptados |
+| Guía de arranque y prueba LAN | Codex | En curso en `codex/fase1-regression` | `README.md`, `docs/LAN_SETUP.md` | Ninguna |
+| Selección de IP LAN | Renato + Claude | Asignada en `mejora/seleccion-ip` | `chat_arduino.py` (`local_ips`) + prueba específica | No tocar desde otras ramas |
+| Prueba física desde celular | Renato + Claude | Asignada | Registro en issue/documentación | Red de aula disponible |
 | Extraer frontend sin cambio visual | Por acordar | Bloqueada | `chat_arduino.py`, `nexus_chat/web/` | Pruebas de regresión |
 | Persistencia e identidad | Por acordar | Bloqueada | Por diseñar | Modularización |
 | Salas y privados | Por acordar | Bloqueada | Por diseñar | Identidad + persistencia |
@@ -132,6 +160,9 @@ Por favor responde en el pull request de coordinación:
 | 2026-09-18 | Usar este archivo y su pull request como punto de coordinación | Propuesta | Pendiente del alumno |
 | 2026-09-18 | Empezar por pruebas/documentación antes de modularizar | Propuesta | Pendiente del alumno |
 | 2026-09-18 | Incorporar a otro alumno que usará Claude para desarrollar en el repositorio | Aceptada; falta identificar cuenta y tarea | Profesor + segundo alumno + Codex |
+| 2026-09-18 | Renato toma selección de IP y prueba física; Codex toma regresión y documentación | Aceptada | Christopher + Renato + Codex |
+| 2026-09-18 | Modularizar después en `communication/` y `web/`, conservando el lanzador | Aceptada | Christopher + Renato + Codex |
+| 2026-09-18 | Objetivo provisional: 30 usuarios, prueba de margen a 60 | Aceptada para LAN 1.0; revisar si cambia el alcance | Equipo |
 
 ## Criterio para comenzar a integrar código
 
