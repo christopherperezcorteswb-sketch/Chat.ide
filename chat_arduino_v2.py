@@ -285,49 +285,101 @@ def can_send(c: dict) -> bool:
 # ---------------------------------------------------------------------------
 # RED LOCAL
 # ---------------------------------------------------------------------------
-def local_ips() -> list[str]:
-    ips: set[str] = set()
+def es_privada(ip: str) -> bool:
+    """True si la IP esta en un rango privado (RFC 1918)."""
+    try:
+        return ipaddress.ip_address(ip).is_private
+    except ValueError:
+        return False
 
-    # Ruta preferida del sistema operativo. No envia trafico real importante;
-    # se usa para conocer la interfaz que Windows/Linux elegiria.
+
+def es_inservible(ip: str) -> bool:
+    """Direcciones por las que nunca va a entrar otro equipo.
+
+    Loopback es esta misma maquina. Link-local (169.254.x.x) es la que el
+    sistema se autoasigna cuando no encuentra DHCP: que aparezca significa
+    justamente que esa placa NO esta en una red util.
+
+    Lo que NO se descarta es una IP publica. La version anterior se quedaba
+    solo con `is_private`, y eso deja sin ninguna direccion que mostrar a una
+    escuela cuyo equipo tenga IP publica en la placa.
+    """
+    try:
+        dir_ip = ipaddress.ip_address(ip)
+    except ValueError:
+        return True
+    return (
+        dir_ip.version != 4
+        or dir_ip.is_loopback
+        or dir_ip.is_link_local
+        or dir_ip.is_unspecified
+    )
+
+
+def ip_de_salida() -> str | None:
+    """La IP de la interfaz por la que este equipo sale a la red.
+
+    Es la unica senal fiable sin usar APIs propias de cada sistema operativo:
+    `connect()` sobre UDP no envia ni un byte, solo hace que el sistema elija
+    la interfaz de salida segun su tabla de rutas. Leyendo el socket se sabe
+    cual eligio, y esa es la direccion que un celular en la misma red alcanza.
+
+    Devuelve None si no hay ninguna red util.
+    """
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.settimeout(0.2)
-        s.connect(("10.255.255.255", 1))
-        ips.add(s.getsockname()[0])
-        s.close()
-    except OSError:
-        pass
-
-    try:
-        for ip in socket.gethostbyname_ex(socket.gethostname())[2]:
-            ips.add(ip)
-    except OSError:
-        pass
-
-    valid = []
-    for raw in ips:
         try:
-            ip = ipaddress.ip_address(raw)
-        except ValueError:
-            continue
-        if ip.version != 4 or ip.is_loopback or ip.is_link_local:
-            continue
-        if ip.is_private:
-            valid.append(raw)
+            s.settimeout(0.2)
+            s.connect(("10.255.255.255", 1))
+            ip = s.getsockname()[0]
+        finally:
+            s.close()
+    except OSError:
+        return None
+    return None if es_inservible(ip) else ip
 
-    def priority(raw: str):
-        if raw.startswith("192.168."):
-            p = 0
-        elif raw.startswith("10."):
-            p = 1
-        elif raw.startswith("172."):
-            p = 2
-        else:
-            p = 3
-        return (p, tuple(int(x) for x in raw.split(".")))
 
-    return sorted(set(valid), key=priority)
+def otras_ips(principal: str | None = None) -> list[tuple[str, bool]]:
+    """Las demas IPv4 del equipo. Devuelve [(ip, es_sospechosa)].
+
+    `es_sospechosa` marca las que casi seguro pertenecen a un adaptador
+    virtual: WSL, Hyper-V, Docker, VirtualBox. Esas placas suelen tomar el .1
+    de su propia subred privada, porque hacen de puerta de enlace de una red
+    que solo existe dentro de esta maquina.
+
+    Por que no alcanzaba con ordenar por rango, que es lo que se hacia antes:
+    los adaptadores virtuales no viven solo en 172.x. Docker Desktop usa
+    192.168.65.x y VirtualBox 192.168.56.x, asi que quedaban por ENCIMA de
+    una LAN escolar real en 10.x. El sintoma era el mismo que se queria
+    arreglar, pero al reves y mas dificil de ver.
+
+    Es una heuristica, no una certeza, asi que se muestran igual pero
+    avisando. Ocultarlas del todo seria peor: en un equipo con dos placas de
+    red buenas, la segunda podria ser la que sirve.
+    """
+    encontradas: set[str] = set()
+    try:
+        encontradas.update(socket.gethostbyname_ex(socket.gethostname())[2])
+    except OSError:
+        pass
+
+    resultado: list[tuple[str, bool]] = []
+    for ip in sorted(encontradas):
+        if es_inservible(ip) or ip == principal:
+            continue
+        resultado.append((ip, es_privada(ip) and ip.endswith(".1")))
+    return resultado
+
+
+def local_ips() -> list[str]:
+    """La lista plana de siempre, pero con la buena primero.
+
+    Se conserva con la misma firma para no romper a quien ya la use. Lo nuevo
+    deberia llamar a ip_de_salida() y otras_ips(), que distinguen cual sirve.
+    """
+    principal = ip_de_salida()
+    resto = [ip for ip, _ in otras_ips(principal)]
+    return [principal] + resto if principal else resto
 
 
 # ---------------------------------------------------------------------------
@@ -1055,15 +1107,24 @@ def main() -> None:
     print(f"Base de datos: {DB_PATH}")
     print(f"Puerto: {PORT}")
 
-    ips = local_ips()
-    if ips:
-        print("\nDirecciones para los demas dispositivos de la misma red:")
-        for i, ip in enumerate(ips):
-            marker = "  RECOMENDADA ->" if i == 0 else "              "
-            print(f"{marker} http://{ip}:{PORT}")
+    principal = ip_de_salida()
+    otras = otras_ips(principal)
+
+    if principal:
+        print("\nQue los demas abran esta direccion en su navegador:\n")
+        print(f"    http://{principal}:{PORT}")
     else:
-        print("\nNo se detecto una IPv4 privada util.")
+        print("\nNo se detecto ninguna red util.")
         print("Conecta la PC a un router/Wi-Fi y revisa el firewall de Windows.")
+
+    if otras:
+        # Separadas y con aviso. Antes iban en la misma lista que la buena,
+        # solo con un marcador en la primera, y la de WSL seguia apareciendo
+        # como una opcion valida para copiar.
+        print("\nOtras direcciones de este equipo. Casi seguro NO sirven:")
+        for ip, sospechosa in otras:
+            nota = "   <- adaptador virtual (WSL/Hyper-V/Docker)" if sospechosa else ""
+            print(f"    http://{ip}:{PORT}{nota}")
 
     print(f"\nEn esta PC: http://localhost:{PORT}")
     print("Ctrl+C para cerrar.\n")
