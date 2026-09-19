@@ -39,6 +39,8 @@ En la PC servidor:
 python chat_arduino.py
 ```
 
+Este comando inicia la línea base estable. `chat_arduino_v2.py` es una candidata en revisión; cuando se pruebe debe indicarse explícitamente en el registro para no mezclar resultados entre versiones.
+
 Abra primero:
 
 ```text
@@ -120,6 +122,7 @@ Copie esta tabla en el issue o pull request correspondiente:
 | Fecha y responsable | |
 | Sistema de la PC servidor | |
 | Versión de Python | |
+| Programa probado (`chat_arduino.py` o `chat_arduino_v2.py`) | |
 | Interfaz e IP elegida | |
 | Puerto | |
 | Tipo de router/hotspot | |

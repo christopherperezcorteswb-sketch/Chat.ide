@@ -4,6 +4,13 @@ Chat de aula con apariencia de Arduino IDE que funciona entre computadoras y cel
 
 > Estado actual: prototipo funcional de una sala general. La evolución hacia **NEXUS Team Chat** se realiza de forma incremental y conserva el trabajo original.
 
+## Versiones en revisión
+
+- `chat_arduino.py`: línea base original, auditada y protegida por pruebas de regresión.
+- `chat_arduino_v2.py`: candidata experimental aportada por Christopher. Añade salas, SQLite, sesiones generadas por servidor, cabeceras defensivas, colas acotadas y rate limiting. Todavía no reemplaza formalmente la línea base; debe completar revisión y pruebas.
+
+La existencia de v2 no elimina v1. La decisión de consolidación se hará mediante pull request, identificando qué conservar de cada una.
+
 ## Qué funciona
 
 - Chat de texto multiusuario dentro de una LAN.
@@ -42,6 +49,14 @@ El puerto predeterminado es `8000`. Para elegir otro:
 python chat_arduino.py 8080
 ```
 
+Para evaluar la candidata v2 sin confundirla con la línea base:
+
+```powershell
+python chat_arduino_v2.py 8080
+```
+
+V2 crea por defecto `chatide_data/chatide.sqlite3`. Esa carpeta es un dato de ejecución y está excluida de Git. En pruebas debe redirigirse con `CHATIDE_DATA_DIR` a una carpeta temporal.
+
 La consola muestra una o más direcciones:
 
 ```text
@@ -76,22 +91,26 @@ Cubren:
 - tratamiento de HTML como texto;
 - normalización y límite de mensajes;
 - salida de usuarios.
+- rutas, sesiones, salas, persistencia, cabeceras y rate limiting de la candidata v2;
+- una prueba marcada como fallo esperado para la normalización de saltos de línea conocida en v2.
 
 ## Estructura actual
 
 ```text
 Chat.ide/
 ├── chat_arduino.py              # prototipo original: servidor + interfaz
+├── chat_arduino_v2.py           # candidata experimental en revisión
 ├── README.md
 ├── PLAN_NEXUS_TEAM_CHAT.md      # auditoría y arquitectura propuesta
 ├── COORDINACION_NEXUS.md        # acuerdos y reparto del equipo
 ├── docs/
 │   └── LAN_SETUP.md
 └── tests/
-    └── test_chat_server.py
+    ├── test_chat_server.py      # regresión de la línea base
+    └── test_chat_server_v2.py   # caracterización de la candidata v2
 ```
 
-`chat_arduino.py` se mantiene como línea base y lanzador compatible. La modularización futura no debe reemplazarlo de golpe.
+`chat_arduino.py` se mantiene como línea base y lanzador compatible. `chat_arduino_v2.py` no se considera todavía el nuevo lanzador oficial. La modularización futura no debe reemplazar ninguno de forma silenciosa.
 
 ## Limitaciones actuales
 
@@ -131,6 +150,7 @@ Reglas básicas:
 1. Automatizar la regresión del prototipo.
 2. Verificar una conexión real desde celular.
 3. Mejorar la selección de IP LAN.
-4. Modularizar gradualmente `communication/` y después `web/`.
-5. Añadir límites de conexiones, colas y frecuencia de mensajes.
-6. Incorporar persistencia, identidad y funciones colaborativas en fases posteriores.
+4. Revisar la candidata v2 y decidir qué cambios integrar mediante PRs pequeños.
+5. Modularizar gradualmente `communication/` y después `web/`.
+6. Completar límites de conexiones, colas y frecuencia de mensajes.
+7. Incorporar identidad y funciones colaborativas en fases posteriores.

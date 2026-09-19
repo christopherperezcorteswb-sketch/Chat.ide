@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import http.client
 import json
+import os
 import socket
 import subprocess
 import sys
@@ -31,14 +32,21 @@ def free_tcp_port() -> int:
 
 
 class RunningServer:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        script: Path = SERVER_SCRIPT,
+        environment: dict[str, str] | None = None,
+    ) -> None:
         self.port = free_tcp_port()
+        self.script = script
+        self.environment = environment or {}
         self.process: subprocess.Popen[str] | None = None
 
     def start(self) -> None:
         self.process = subprocess.Popen(
-            [sys.executable, "-u", str(SERVER_SCRIPT), str(self.port)],
+            [sys.executable, "-u", str(self.script), str(self.port)],
             cwd=ROOT,
+            env={**os.environ, **self.environment},
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
@@ -53,7 +61,9 @@ class RunningServer:
                 raise RuntimeError(f"El servidor terminó al arrancar:\n{output}")
             try:
                 status, _, body = self.request("GET", "/", timeout=0.5)
-                if status == 200 and b"<!DOCTYPE html>" in body:
+                # V1 uses an uppercase doctype and V2 a lowercase one. The
+                # harness only needs proof that the HTTP application is ready.
+                if status == 200 and b"<html" in body.lower():
                     return
             except (OSError, TimeoutError) as exc:
                 last_error = exc
