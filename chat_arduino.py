@@ -13,6 +13,7 @@ Uso:
 
 Los estudiantes abren en el navegador la direccion que se imprime al iniciar.
 """
+import ipaddress
 import json
 import queue
 import socket
@@ -198,25 +199,36 @@ class Handler(BaseHTTPRequestHandler):
 
 # ------------------------------------------------------------- arranque ----
 def es_privada(ip):
-    """True si la IP esta en un rango privado (RFC 1918)."""
-    partes = ip.split(".")
-    if len(partes) != 4:
-        return False
+    """True si la IP esta en un rango privado (RFC 1918).
+
+    Se usa `ipaddress` y no comparacion de texto: la idea la tomamos del
+    prototipo V2, y es mejor. `"172.5.0.1".startswith("172.")` da True y
+    esa direccion NO es privada; el bloque privado es solo 172.16-31.
+    """
     try:
-        a, b = int(partes[0]), int(partes[1])
+        return ipaddress.ip_address(ip).is_private
     except ValueError:
         return False
-    return a == 10 or (a == 172 and 16 <= b <= 31) or (a == 192 and b == 168)
 
 
 def es_inservible(ip):
     """Direcciones por las que nunca va a entrar otro equipo.
 
-    127.x.x.x es esta misma maquina. 169.254.x.x es la que el sistema se
-    autoasigna cuando no encuentra DHCP: que aparezca significa
-    justamente que esa placa NO esta en una red util.
+    Loopback es esta misma maquina. Link-local (169.254.x.x) es la que el
+    sistema se autoasigna cuando no encuentra DHCP: que aparezca
+    significa justamente que esa placa NO esta en una red util.
+
+    Lo que NO se descarta aqui es una IP publica. El V2 se queda solo con
+    las privadas, y eso deja sin direccion a una escuela cuyo equipo
+    tenga IP publica en la placa. Es raro, pero cuando pasa el programa
+    no muestra nada y no hay forma de saber por que.
     """
-    return ip.startswith("127.") or ip.startswith("169.254.")
+    try:
+        dir_ip = ipaddress.ip_address(ip)
+    except ValueError:
+        return True
+    return (dir_ip.version != 4 or dir_ip.is_loopback
+            or dir_ip.is_link_local or dir_ip.is_unspecified)
 
 
 def ip_de_salida():
@@ -233,6 +245,7 @@ def ip_de_salida():
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
+            s.settimeout(0.2)          # del V2: seguro barato por si el sistema demora
             s.connect(("10.255.255.255", 1))
             ip = s.getsockname()[0]
         finally:

@@ -51,6 +51,21 @@ class PruebaEsInservible(unittest.TestCase):
         for ip in ("192.168.0.20", "10.0.0.5", "172.24.224.1"):
             self.assertFalse(chat.es_inservible(ip), ip)
 
+    def test_una_ip_publica_no_se_descarta(self):
+        """El V2 se queda solo con las privadas; esto lo corrige.
+
+        Una escuela con IP publica en la placa quedaria sin ninguna
+        direccion para mostrar, y sin explicacion de por que.
+        """
+        for ip in ("200.10.5.4", "8.8.8.8"):
+            self.assertFalse(chat.es_inservible(ip), ip)
+
+    def test_basura_se_considera_inservible(self):
+        # Al reves que es_privada(): ante algo que no es una IP, lo
+        # seguro es no ofrecersela a nadie.
+        for ip in ("", "no.es.una.ip", "192.168.0"):
+            self.assertTrue(chat.es_inservible(ip), ip)
+
 
 class PruebaOtrasIps(unittest.TestCase):
     """El caso real de la maquina donde se detecto el problema.
