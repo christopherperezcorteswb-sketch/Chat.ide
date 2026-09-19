@@ -403,10 +403,6 @@ Un nombre opcional como `http://nexus.local` mediante mDNS puede mejorar la expe
 
 La IA debe ser un adaptador de salida del servidor, nunca parte del núcleo del chat.
 
-El primer adaptador previsto será **Claude mediante la API oficial de Anthropic**. La suscripción de consumo en Claude.ai y el acceso a la API son productos separados: tener Claude Pro/Max no implica disponer de créditos de API. Antes de implementar se debe confirmar acceso a Anthropic Console, responsable de facturación y límite de gasto. Referencia oficial: [Anthropic — Claude.ai y API se facturan por separado](https://support.anthropic.com/es/articles/9876003-tengo-una-suscripcion-a-un-plan-pago-de-claude-ai-por-que-tengo-que-pagar-por-separado-por-el-uso-de-la-api-en-console).
-
-La cuenta puede estar administrada por otro alumno, pero la arquitectura no debe depender de su contraseña ni de una sesión abierta de Claude.ai o Claude Code. Ese alumno conserva sus credenciales y, llegado el momento, configura una clave revocable exclusivamente en el entorno del servidor. Durante desarrollo y pruebas se usa un proveedor simulado; la clave real no se necesita para ejecutar el chat ni para probar la lógica local.
-
 Flujo recomendado:
 
 1. El servidor guarda y difunde el mensaje local normalmente.
@@ -435,9 +431,6 @@ Controles necesarios:
 
 - Clave solo en backend mediante variable de entorno/almacén seguro.
 - Interfaz `AIProvider` para cambiar de proveedor sin tocar el chat.
-- Primer proveedor: `AnthropicProvider`; proveedor simulado: `FakeAIProvider` para pruebas sin Internet, saldo ni secretos.
-- Modelo configurable en el servidor, no fijado en el frontend ni disperso por el código.
-- Presupuesto y límite de uso aprobados por el profesor; evitar recarga automática sin control institucional explícito.
 - Timeout corto, reintentos limitados, circuit breaker y límite de concurrencia.
 - Cuotas por alumno/sala y un interruptor del profesor.
 - No entregar al modelo archivos locales, base de datos, shell ni herramientas salvo autorización y aislamiento explícitos.
