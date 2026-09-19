@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Entornos locales
+.venv/
+venv/
+
+# Secretos locales (nunca versionar valores reales)
+.env
+.env.*
+!.env.example
+
+# Datos generados por CHAT.ide
+chatide_data/
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+
+# Herramientas y sistema operativo
+.coverage
+.pytest_cache/
+.DS_Store
+Thumbs.db
